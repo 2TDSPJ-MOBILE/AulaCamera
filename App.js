@@ -1,12 +1,16 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, Image, Button, Alert } from 'react-native';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, use } from 'react';
 
 //Novo sistema de camera do Expo
 import { CameraView, useCameraPermissions } from 'expo-camera';
 
 //Importando a galeria
 import * as MediaLibrary from 'expo-media-library'
+
+//Importando o Expo-Sharing
+
+import * as Sharing from 'expo-sharing'
 
 export default function App() {
   //Estado para permissao da camera
@@ -20,6 +24,16 @@ export default function App() {
 
   //Estado da foto capturada
   const [foto, setFoto] = useState(null)
+
+  //Estado para alternar as camera
+  const[isFrontCamera,setIsFrontCamera]=useState(false)
+
+  //Estado para ligar ou desligar o flash
+  const[flashLigado,setFlashLigado]=useState(false)
+
+  //Estado para configurar o scaneamento
+  const[scaneado,setScaneado] = useState(false)
+
 
   //Solicitar o acesso da galeria na inicialização do app
   useEffect(() => {
@@ -50,6 +64,25 @@ export default function App() {
     }
   }
 
+  //Função para alternar as cameras da aplicação
+  const alternarCamera  = () =>{
+    setIsFrontCamera(!isFrontCamera)
+  }
+
+  //Função para ativar ou desativar o flash
+  const alternarFlash = () => {
+    setFlashLigado(!flashLigado)
+  }
+
+  //Função para compartilhar foto com o Sharing
+  const compartilharFoto = async() =>{
+    if(foto?.uri && await Sharing.isAvailableAsync()){
+      await Sharing.shareAsync(foto.uri)
+    }else{
+      Alert.alert("Error","Compartilhamento não disponível no dispositivo")
+    }
+  }
+
   //Enquanto a permissão não estiver carregada
   if (!permissaoCamera) return <View />
 
@@ -70,15 +103,27 @@ export default function App() {
           <CameraView
             ref={cameraRef}
             style={styles.camera}
-            facing="back"
+            facing={isFrontCamera?'front':'back'}
+            flash={flashLigado?'on':'off'}
+            onBarcodeScanned={({type,data})=>{
+              if(!scaneado){
+                setScaneado(true)
+                Alert.alert("Código Dectado",`Tipo:${type}\nValor:${data}`)
+              }
+            }}
           />
           <Button title='Tirar Foto' onPress={tirarFoto}/>
+          <Button title='Alternar Camera' onPress={alternarCamera}/>
+          <Button title={flashLigado?'Desligar Flash':'Ligar Flash'} onPress={alternarFlash}/>
+          {scaneado && (
+            <Button title='Escanear Novamente' onPress={()=>setScaneado(false)}/>)}
         </>
       ) : (
         <>
           <Image source={{uri:foto.uri}} style={styles.preview}/>
           <Button title='Salvar Foto' onPress={salvarFoto}/>
           <Button title='Tirar outra Foto' onPress={()=>setFoto(null)}/>
+          <Button title='Compartilhar Foto' onPress={compartilharFoto}/>
         </>
       )}
 
@@ -91,7 +136,7 @@ const styles = StyleSheet.create({
     flex: 1
   },
   camera: {
-    flex: 1
+    flex:1
   },
   preview:{
     flex:1,
